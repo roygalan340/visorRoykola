@@ -23,7 +23,7 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         const val REQ_LOCATION = 1234
-        const val DEFAULT_URL = "http://192.168.4.1:8000"
+        const val DEFAULT_URL = "http://192.168.1.151:8000"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
