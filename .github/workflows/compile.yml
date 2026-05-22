@@ -2,8 +2,8 @@ name: Compilar APK de RoykolaVisor
 
 on:
   push:
-    branches: [ main, master ] # Se ejecutará cada vez que subas cambios a estas ramas
-  workflow_dispatch: # Permite compilar manualmente con un botón
+    branches: [ main, master ]
+  workflow_dispatch:
 
 jobs:
   build:
@@ -19,12 +19,13 @@ jobs:
         distribution: 'temurin'
         java-version: '11'
 
-    - name: Dar permisos de ejecución al script de Gradle
-      run: chmod +x gradlew
-      continue-on-error: true
+    - name: Configurar Gradle en el Servidor
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        gradle-version: 7.4.2
 
-    - name: Compilar APK con Gradle
-      run: ./gradlew assembleDebug
+    - name: Compilar APK con Gradle Global
+      run: gradle assembleDebug
 
     - name: Subir la APK generada a GitHub
       uses: actions/upload-artifact@v4
