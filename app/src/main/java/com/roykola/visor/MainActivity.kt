@@ -79,7 +79,7 @@ class MainActivity : AppCompatActivity() {
                     runOnUiThread {
                         Toast.makeText(this@MainActivity, "Conectado a $ssid (solo app)", Toast.LENGTH_SHORT).show()
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                            connectivityManager.bindProcessToNetwork(network)
+                            //connectivityManager.bindProcessToNetwork(network)
                         } else {
                             @Suppress("DEPRECATION")
                             ConnectivityManager.setProcessDefaultNetwork(network)
