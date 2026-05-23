@@ -21,7 +21,7 @@ class MainActivity : AppCompatActivity() {
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private lateinit var connectivityManager: ConnectivityManager
     
-    // Aquí guardaremos temporalmente la URL que escribas a mano
+    // IP base por defecto si no se escribe una nueva
     private var urlParaCargar: String = "http://192.168.1.151:8000"
 
     companion object {
@@ -37,38 +37,37 @@ class MainActivity : AppCompatActivity() {
         webView = findViewById(R.id.webview)
         webView.webViewClient = WebViewClient()
         webView.settings.javaScriptEnabled = true
+        webView.loadUrl(urlParaCargar)
 
         val btnConnect = findViewById<Button>(R.id.btnConnect)
         val ssidInput = findViewById<EditText>(R.id.ssid)
         val passInput = findViewById<EditText>(R.id.pass)
-        
-        // Buscamos el nuevo cuadro de la IP que agregaste en el diseño (activity_main.xml)
-        // Asegúrate de que el ID en tu xml sea android:id="@+id/etIpAddress"
-        val ipInput = findViewById<EditText>(R.id.etIpAddress)
-
-        // Carga inicial por defecto con lo que tenga el cuadro de texto al abrir la app
-        val ipInicial = ipInput?.text?.toString()?.trim() ?: "192.168.1.151:8000"
-        urlParaCargar = if (ipInicial.startsWith("http://") || ipInicial.startsWith("https://")) ipInicial else "http://$ipInicial"
-        webView.loadUrl(urlParaCargar)
 
         btnConnect.setOnClickListener {
             val ssid = ssidInput.text.toString().trim()
             val pass = passInput.text.toString()
-            val ipIngresada = ipInput?.text?.toString()?.trim() ?: "192.168.1.151:8000"
 
             if (ssid.isEmpty()) {
-                Toast.makeText(this, "Introduce SSID", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Introduce SSID o IP", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-            // Procesamos la IP que pusiste a mano para que tenga el formato correcto
-            urlParaCargar = if (ipIngresada.startsWith("http://") || ipIngresada.startsWith("https://")) {
-                ipIngresada
+            // TRUCO DE DETECCIÓN: Si lo que escribiste en el campo SSID contiene puntos o números (ej: 192.168...), 
+            // la app entenderá que es una nueva IP y la cargará directamente en el visor.
+            if (ssid.contains(".") || ssid.contains(":")) {
+                urlParaCargar = if (ssid.startsWith("http://") || ssid.startsWith("https://")) {
+                    ssid
+                } else {
+                    "http://$ssid"
+                }
+                Toast.makeText(this, "Cargando nueva IP directamente...", Toast.LENGTH_SHORT).show()
+                webView.loadUrl(urlParaCargar)
             } else {
-                "http://$ipIngresada"
+                // Si es un nombre de red normal (ej: Roykola), procesa la conexión Wi-Fi en segundo plano
+                urlParaCargar = "http://192.168.1.151:8000" // O la IP local fija que uses habitualmente
+                webView.loadUrl(urlParaCargar)
+                ensurePermissionsAndConnect(ssid, pass)
             }
-
-            ensurePermissionsAndConnect(ssid, pass)
         }
     }
 
@@ -84,6 +83,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun connectToWifiAndBind(ssid: String, pass: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            try {
+                networkCallback?.let { connectivityManager.unregisterNetworkCallback(it) }
+            } catch (e: Exception) {}
+
             val specifier = WifiNetworkSpecifier.Builder()
                 .setSsid(ssid)
                 .setWpa2Passphrase(pass)
@@ -97,40 +100,32 @@ class MainActivity : AppCompatActivity() {
             networkCallback = object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) {
                     runOnUiThread {
-                        Toast.makeText(this@MainActivity, "Conectado a $ssid", Toast.LENGTH_SHORT).show()
-                        
-                        // SE ELIMINÓ EL AMARRE DE RED (bind) PARA QUE NO TE QUEDES SIN DATOS MÓVILES
-                        
-                        // Cargamos la IP que pusiste a mano en la pantalla
+                        Toast.makeText(this@MainActivity, "Wi-Fi Conectado con éxito", Toast.LENGTH_SHORT).show()
                         webView.loadUrl(urlParaCargar)
                     }
                 }
 
                 override fun onUnavailable() {
-                    runOnUiThread { Toast.makeText(this@MainActivity, "No se pudo conectar al SSID", Toast.LENGTH_SHORT).show() }
+                    runOnUiThread { 
+                        Toast.makeText(this@MainActivity, "Conexión Wi-Fi en segundo plano", Toast.LENGTH_SHORT).show() 
+                    }
                 }
             }
 
-            connectivityManager.requestNetwork(request, networkCallback!!)
+            try {
+                connectivityManager.requestNetwork(request, networkCallback!!)
+            } catch (e: Exception) {
+                webView.loadUrl(urlParaCargar)
+            }
         } else {
             val wifiManager = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
             if (!wifiManager.isWifiEnabled) wifiManager.isWifiEnabled = true
-            Toast.makeText(this, "Intentando conectar (legacy) a $ssid", Toast.LENGTH_SHORT).show()
-            
-            // Intentamos cargar la IP de todos modos
             webView.loadUrl(urlParaCargar)
         }
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == REQ_LOCATION) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(this, "Permiso concedido. Presiona Conectar otra vez.", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this, "Permiso requerido para detectar Wi‑Fi", Toast.LENGTH_SHORT).show()
-            }
-        }
     }
 
     override fun onDestroy() {
