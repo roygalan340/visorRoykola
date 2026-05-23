@@ -21,7 +21,7 @@ class MainActivity : AppCompatActivity() {
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private lateinit var connectivityManager: ConnectivityManager
     
-    // IP base por defecto si no se escribe una nueva
+    // IP por defecto si el cuadro está vacío
     private var urlParaCargar: String = "http://192.168.1.151:8000"
 
     companion object {
@@ -37,37 +37,44 @@ class MainActivity : AppCompatActivity() {
         webView = findViewById(R.id.webview)
         webView.webViewClient = WebViewClient()
         webView.settings.javaScriptEnabled = true
-        webView.loadUrl(urlParaCargar)
 
         val btnConnect = findViewById<Button>(R.id.btnConnect)
         val ssidInput = findViewById<EditText>(R.id.ssid)
         val passInput = findViewById<EditText>(R.id.pass)
+        
+        // Vinculamos de forma segura el tercer cuadro que se ve en tu imagen
+        val ipInput = findViewById<EditText>(R.id.etIpAddress)
+
+        // Carga inicial al abrir la app con lo que tenga el cuadro de texto
+        val ipInicial = ipInput?.text?.toString()?.trim() ?: "192.168.1.151:8000"
+        urlParaCargar = if (ipInicial.startsWith("http://") || ipInicial.startsWith("https://")) ipInicial else "http://$ipInicial"
+        webView.loadUrl(urlParaCargar)
 
         btnConnect.setOnClickListener {
             val ssid = ssidInput.text.toString().trim()
             val pass = passInput.text.toString()
+            
+            // Leemos el valor exacto que escribiste en el tercer cuadro (ej: 192.168.1.2:8000)
+            val ipIngresada = ipInput?.text?.toString()?.trim() ?: ""
 
             if (ssid.isEmpty()) {
-                Toast.makeText(this, "Introduce SSID o IP", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Introduce SSID", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
 
-            // TRUCO DE DETECCIÓN: Si lo que escribiste en el campo SSID contiene puntos o números (ej: 192.168...), 
-            // la app entenderá que es una nueva IP y la cargará directamente en el visor.
-            if (ssid.contains(".") || ssid.contains(":")) {
-                urlParaCargar = if (ssid.startsWith("http://") || ssid.startsWith("https://")) {
-                    ssid
-                } else {
-                    "http://$ssid"
-                }
-                Toast.makeText(this, "Cargando nueva IP directamente...", Toast.LENGTH_SHORT).show()
-                webView.loadUrl(urlParaCargar)
+            // Si escribiste una IP a mano, la procesamos, si no, dejamos la de por defecto
+            val ipFinal = if (ipIngresada.isNotEmpty()) ipIngresada else "192.168.1.151:8000"
+            urlParaCargar = if (ipFinal.startsWith("http://") || ipFinal.startsWith("https://")) {
+                ipFinal
             } else {
-                // Si es un nombre de red normal (ej: Roykola), procesa la conexión Wi-Fi en segundo plano
-                urlParaCargar = "http://192.168.1.151:8000" // O la IP local fija que uses habitualmente
-                webView.loadUrl(urlParaCargar)
-                ensurePermissionsAndConnect(ssid, pass)
+                "http://$ipFinal"
             }
+
+            // Forzamos al visor a cargar la IP nueva INMEDIATAMENTE en pantalla
+            webView.loadUrl(urlParaCargar)
+
+            // Conectamos al Wi-Fi en segundo plano sin cerrar la app ni limpiar la pantalla
+            ensurePermissionsAndConnect(ssid, pass)
         }
     }
 
@@ -100,14 +107,13 @@ class MainActivity : AppCompatActivity() {
             networkCallback = object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) {
                     runOnUiThread {
-                        Toast.makeText(this@MainActivity, "Wi-Fi Conectado con éxito", Toast.LENGTH_SHORT).show()
+                        // Al estar enlazado, refresca el visor usando la IP que pusiste a mano
                         webView.loadUrl(urlParaCargar)
                     }
                 }
-
                 override fun onUnavailable() {
                     runOnUiThread { 
-                        Toast.makeText(this@MainActivity, "Conexión Wi-Fi en segundo plano", Toast.LENGTH_SHORT).show() 
+                        Toast.makeText(this@MainActivity, "Buscando red en segundo plano...", Toast.LENGTH_SHORT).show() 
                     }
                 }
             }
@@ -122,10 +128,6 @@ class MainActivity : AppCompatActivity() {
             if (!wifiManager.isWifiEnabled) wifiManager.isWifiEnabled = true
             webView.loadUrl(urlParaCargar)
         }
-    }
-
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
     override fun onDestroy() {
