@@ -20,10 +20,12 @@ class MainActivity : AppCompatActivity() {
     private lateinit var webView: WebView
     private var networkCallback: ConnectivityManager.NetworkCallback? = null
     private lateinit var connectivityManager: ConnectivityManager
+    
+    // Aquí guardaremos temporalmente la URL que escribas a mano
+    private var urlParaCargar: String = "http://192.168.1.151:8000"
 
     companion object {
         const val REQ_LOCATION = 1234
-        const val DEFAULT_URL = "http://192.168.1.151:8000"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,19 +37,37 @@ class MainActivity : AppCompatActivity() {
         webView = findViewById(R.id.webview)
         webView.webViewClient = WebViewClient()
         webView.settings.javaScriptEnabled = true
-        webView.loadUrl(DEFAULT_URL)
 
         val btnConnect = findViewById<Button>(R.id.btnConnect)
         val ssidInput = findViewById<EditText>(R.id.ssid)
         val passInput = findViewById<EditText>(R.id.pass)
+        
+        // Buscamos el nuevo cuadro de la IP que agregaste en el diseño (activity_main.xml)
+        // Asegúrate de que el ID en tu xml sea android:id="@+id/etIpAddress"
+        val ipInput = findViewById<EditText>(R.id.etIpAddress)
+
+        // Carga inicial por defecto con lo que tenga el cuadro de texto al abrir la app
+        val ipInicial = ipInput?.text?.toString()?.trim() ?: "192.168.1.151:8000"
+        urlParaCargar = if (ipInicial.startsWith("http://") || ipInicial.startsWith("https://")) ipInicial else "http://$ipInicial"
+        webView.loadUrl(urlParaCargar)
 
         btnConnect.setOnClickListener {
             val ssid = ssidInput.text.toString().trim()
             val pass = passInput.text.toString()
+            val ipIngresada = ipInput?.text?.toString()?.trim() ?: "192.168.1.151:8000"
+
             if (ssid.isEmpty()) {
                 Toast.makeText(this, "Introduce SSID", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
+
+            // Procesamos la IP que pusiste a mano para que tenga el formato correcto
+            urlParaCargar = if (ipIngresada.startsWith("http://") || ipIngresada.startsWith("https://")) {
+                ipIngresada
+            } else {
+                "http://$ipIngresada"
+            }
+
             ensurePermissionsAndConnect(ssid, pass)
         }
     }
@@ -77,14 +97,12 @@ class MainActivity : AppCompatActivity() {
             networkCallback = object : ConnectivityManager.NetworkCallback() {
                 override fun onAvailable(network: Network) {
                     runOnUiThread {
-                        Toast.makeText(this@MainActivity, "Conectado a $ssid (solo app)", Toast.LENGTH_SHORT).show()
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                            //connectivityManager.bindProcessToNetwork(network)
-                        } else {
-                            @Suppress("DEPRECATION")
-                            ConnectivityManager.setProcessDefaultNetwork(network)
-                        }
-                        webView.loadUrl(DEFAULT_URL)
+                        Toast.makeText(this@MainActivity, "Conectado a $ssid", Toast.LENGTH_SHORT).show()
+                        
+                        // SE ELIMINÓ EL AMARRE DE RED (bind) PARA QUE NO TE QUEDES SIN DATOS MÓVILES
+                        
+                        // Cargamos la IP que pusiste a mano en la pantalla
+                        webView.loadUrl(urlParaCargar)
                     }
                 }
 
@@ -95,11 +113,12 @@ class MainActivity : AppCompatActivity() {
 
             connectivityManager.requestNetwork(request, networkCallback!!)
         } else {
-            // Legacy attempt for older devices (may require additional handling)
             val wifiManager = applicationContext.getSystemService(WIFI_SERVICE) as WifiManager
             if (!wifiManager.isWifiEnabled) wifiManager.isWifiEnabled = true
             Toast.makeText(this, "Intentando conectar (legacy) a $ssid", Toast.LENGTH_SHORT).show()
-            // Note: programmatic config of Wi‑Fi networks is limited on modern Android versions
+            
+            // Intentamos cargar la IP de todos modos
+            webView.loadUrl(urlParaCargar)
         }
     }
 
@@ -107,7 +126,6 @@ class MainActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == REQ_LOCATION) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // user granted; no SSID saved here — user must press Connect again
                 Toast.makeText(this, "Permiso concedido. Presiona Conectar otra vez.", Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(this, "Permiso requerido para detectar Wi‑Fi", Toast.LENGTH_SHORT).show()
@@ -120,12 +138,5 @@ class MainActivity : AppCompatActivity() {
         try {
             networkCallback?.let { connectivityManager.unregisterNetworkCallback(it) }
         } catch (e: Exception) { }
-        // Unbind process network so system returns to default behavior
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            connectivityManager.bindProcessToNetwork(null)
-        } else {
-            @Suppress("DEPRECATION")
-            ConnectivityManager.setProcessDefaultNetwork(null)
-        }
     }
 }
