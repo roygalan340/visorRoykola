@@ -9,28 +9,44 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var webView: WebView
+    private var webView: WebView? = null
     private var urlParaCargar: String = "http://192.168.1.151:8000"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+        
+        try {
+            setContentView(R.layout.activity_main)
+        } catch (e: Exception) {
+            // Si hay un error cargando el diseño visual, evita que la app se cierre
+            Toast.makeText(this, "Error en diseño visual", Toast.LENGTH_LONG).show()
+            return
+        }
 
-        // Inicializamos el visor web de Roykola
-        webView = findViewById(R.id.webview)
-        webView.webViewClient = WebViewClient()
-        webView.settings.javaScriptEnabled = true
+        // Buscamos los elementos usando "try-catch" para proteger la app de cierres
+        try {
+            webView = findViewById(R.id.webview)
+            webView?.webViewClient = WebViewClient()
+            webView?.settings?.javaScriptEnabled = true
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error al inicializar el Visor Web", Toast.LENGTH_SHORT).show()
+        }
 
         val btnConnect = findViewById<Button>(R.id.btnConnect)
         val ipInput = findViewById<EditText>(R.id.etIpAddress)
 
-        // Al abrir la app, lee lo que esté en el cuadro de la IP y lo carga inmediatamente
+        // Carga inicial segura
         val ipInicial = ipInput?.text?.toString()?.trim() ?: "192.168.1.151:8000"
         urlParaCargar = procesarUrl(ipInicial)
-        webView.loadUrl(urlParaCargar)
+        
+        try {
+            webView?.loadUrl(urlParaCargar)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
 
-        // Si presionas el botón, lee la nueva IP/Host del router y actualiza el visor al instante
-        btnConnect.setOnClickListener {
+        // Configuramos el botón de cambiar IP de forma segura (si existe en la pantalla)
+        btnConnect?.setOnClickListener {
             val ipIngresada = ipInput?.text?.toString()?.trim() ?: ""
 
             if (ipIngresada.isEmpty()) {
@@ -39,12 +55,16 @@ class MainActivity : AppCompatActivity() {
             }
 
             urlParaCargar = procesarUrl(ipIngresada)
-            webView.loadUrl(urlParaCargar)
-            Toast.makeText(this, "Cargando: $urlParaCargar", Toast.LENGTH_SHORT).show()
+            
+            try {
+                webView?.loadUrl(urlParaCargar)
+                Toast.makeText(this, "Cargando: $urlParaCargar", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(this, "No se pudo cargar la dirección", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
-    // Valida que la dirección lleve el protocolo http:// de manera automática
     private fun procesarUrl(input: String): String {
         return if (input.startsWith("http://") || input.startsWith("https://")) {
             input
@@ -53,10 +73,9 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // El botón de retroceso del celular regresa páginas en el visor en lugar de cerrar la app
     override fun onBackPressed() {
-        if (webView.canGoBack()) {
-            webView.goBack()
+        if (webView?.canGoBack() == true) {
+            webView?.goBack()
         } else {
             super.onBackPressed()
         }
