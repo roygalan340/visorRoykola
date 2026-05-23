@@ -36,8 +36,8 @@
             android:layout_marginStart="8dp" />
     </LinearLayout>
 
-    <!-- El visor web ocupa todo el resto de la pantalla automáticamente -->
-    <webkit.WebView
+    <!-- El visor web estándar y universal que Android sí reconoce -->
+    <WebView
         android:id="@+id/webview"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
