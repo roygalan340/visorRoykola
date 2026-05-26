@@ -20,6 +20,12 @@ class MainActivity : AppCompatActivity() {
     private var urlParaCargar: String = "http://192.168.1.151:8000"
     private var yaMostroPublicidad = false
 
+    // ---------------------------------------------------------------------------------------
+    // ENLACE DEL VIDEO REMOTO DE INTERNET (CAMBIABLE)
+    // Cambia esta URL por el enlace directo (.mp4) de tu video publicitario en cada ocasión.
+    // ---------------------------------------------------------------------------------------
+    private val URL_VIDEO_REMOTO = "https://www.facebook.com/reel/2165517514205822"
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
@@ -82,7 +88,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // Función encargada de ocultar la interfaz y encender tu video en bucle
+    // Función encargada de ocultar la interfaz y encender tu video remoto/local en bucle
     private fun activarModoPublicidad() {
         if (yaMostroPublicidad) return
         yaMostroPublicidad = true
@@ -94,19 +100,40 @@ class MainActivity : AppCompatActivity() {
             videoView?.visibility = View.VISIBLE
 
             try {
-                // Buscamos el video "publicidad.mp4" en la carpeta raw
-                val videoUri = Uri.parse("android.resource://" + packageName + "/" + R.raw.publicidad)
-                videoView?.setVideoURI(videoUri)
-                
-                // Cuando el video termine, vuelve a empezar (Bucle infinito)
+                // Configurar reproductor para que repita el video infinitamente al completarse
                 videoView?.setOnCompletionListener {
                     videoView?.start()
                 }
-                
+
+                // CONTROL DE ERRORES: Si el link de internet falla por falta de señal, salta al video local
+                videoView?.setOnErrorListener { mp, what, extra ->
+                    android.util.Log.e("ROYKOLA", "Error reproduciendo video remoto. Cargando video local de respaldo...")
+                    cargarVideoLocalDeRespaldo()
+                    true // Indica que manejamos el error internamente y evita que Android muestre un aviso molesto
+                }
+
+                // INTENTO 1: Cargar el link cambiante usando los datos o internet del cliente
+                android.util.Log.d("ROYKOLA", "Intentando cargar video remoto: $URL_VIDEO_REMOTO")
+                val uriRemota = Uri.parse(URL_VIDEO_REMOTO)
+                videoView?.setVideoURI(uriRemota)
                 videoView?.start()
+
             } catch (e: Exception) {
                 e.printStackTrace()
+                // Si el bloque general falla, asegurar que cargue el local
+                cargarVideoLocalDeRespaldo()
             }
+        }
+    }
+
+    // Carga el video 'publicidad.mp4' guardado dentro de la carpeta res/raw de la APK
+    private fun cargarVideoLocalDeRespaldo() {
+        try {
+            val videoUriLocal = Uri.parse("android.resource://" + packageName + "/" + R.raw.publicidad)
+            videoView?.setVideoURI(videoUriLocal)
+            videoView?.start()
+        } catch (ex: Exception) {
+            ex.printStackTrace()
         }
     }
 
