@@ -24,7 +24,7 @@ class MainActivity : AppCompatActivity() {
     // ENLACE DEL VIDEO REMOTO DE INTERNET (CAMBIABLE)
     // Cambia esta URL por el enlace directo (.mp4) de tu video publicitario en cada ocasión.
     // ---------------------------------------------------------------------------------------
-    private val URL_VIDEO_REMOTO = "https://www.facebook.com/reel/2165517514205822"
+    private val URL_VIDEO_REMOTO = private val URL_VIDEO_REMOTO = "https://docs.google.com/uc?export=download&id=1dMcqJfSyiEKL_FIM2Vdc4Sh_isTiAWxh"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
